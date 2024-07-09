@@ -18,8 +18,8 @@ app.static_folder = 'templates'
 
 # Replace this with the actual path to your images
 IMAGE_FOLDER = '/home/faheem/Workspace/CVSSP_Retrieval/notebook/image_folder/00000'
-IMAGE_PATHS_FILE = '/home/faheem/Workspace/CVSSP_Retrieval/image_paths.txt'
 
+# IMAGE_PATHS_FILE = '/home/faheem/Workspace/CVSSP_Retrieval/image_paths.txt'
 # with open(IMAGE_PATHS_FILE, 'r') as file:
 #     image_paths = file.read().splitlines()
 # image_list = [{"url": "/images/"+path.split('/')[-1], "title": os.path.basename(path), "description": "CUTE CATS WHO DOESNT LIKE THEM"} for path in image_paths][:30]
@@ -41,8 +41,6 @@ url_list = df["url"].tolist()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
 
-
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -51,6 +49,7 @@ def index():
 def handle_text():
     data = request.form
     text = data.get('text')
+
     # Process the text
     text_tokens = clip.tokenize([text], truncate=True)
 
@@ -58,8 +57,14 @@ def handle_text():
     text_features /= text_features.norm(dim=-1, keepdim=True)
     text_embeddings = text_features.cpu().detach().numpy().astype('float32')
 
-    D, I = text_ind.search(text_embeddings, 1)
-
+    D, I = text_ind.search(text_embeddings, 5)
+    # if (data.texts) {
+    #     data.texts.forEach(text => {
+    #         const textElement = document.createElement('p');
+    #         textElement.textContent = text.Caption;
+    #         resultsContainer.appendChild(textElement);
+    #     });
+    # }
     output = []
     for d, i in zip(D[0], I[0]):
         output.append({
@@ -68,7 +73,7 @@ def handle_text():
             "Caption": caption_list[i],
             "Image url": url_list[i],
         })
-    print(output)
+
     return jsonify({"texts": output})
 
 @app.route('/image', methods=['POST'])
@@ -76,16 +81,14 @@ def handle_image():
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     image = request.files['image']
-    # Process the image
 
+    # Process the image
     upload_folder = 'uploads'
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    image_path = os.path.join(upload_folder, image.filename)
+    image_path = os.path.join(upload_folder, 'temp.jpg')
     image.save(image_path)
-    print(image_path)
-
 
     image = Image.open(image_path)
     image_tensor = preprocess(image)
@@ -96,6 +99,7 @@ def handle_image():
     image_embeddings = image_features.cpu().detach().numpy().astype('float32')
 
     D, I = img_ind.search(image_embeddings, 5)
+
     output = []
     for d, i in zip(D[0], I[0]):
         output.append({
@@ -124,7 +128,39 @@ def handle_both():
     if 'image' in request.files:
         image = request.files['image']
         # Process the text and image
-        return jsonify({"images":image_list})
+        upload_folder = 'uploads'
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+
+        image_path = os.path.join(upload_folder, 'temp.jpg')
+        image.save(image_path)
+
+        image = Image.open(image_path)
+        image_tensor = preprocess(image)
+
+        image_features = model.encode_image(torch.unsqueeze(image_tensor.to(device), dim=0))
+        image_features /= image_features.norm(dim=-1, keepdim=True)
+
+        image_embeddings = image_features.cpu().detach().numpy().astype('float32')
+
+        text_tokens = clip.tokenize([text], truncate=True)
+
+        text_features = model.encode_text(text_tokens.to(device))
+        text_features /= text_features.norm(dim=-1, keepdim=True)
+        text_embeddings = text_features.cpu().detach().numpy().astype('float32')
+
+        combined_embeddings = 0.5 * image_embeddings + 0.5 * text_embeddings
+
+        D, I = combined_ind.search(combined_embeddings, 5)
+        output = []
+        for d, i in zip(D[0], I[0]):
+            output.append({
+                "Similarity": float(d),
+                "Index": int(i),
+                "Caption": caption_list[i],
+                "Image url": url_list[i],
+            })
+        return jsonify({"images": output})
     if 'video' in request.files:
         video = request.files['video']
         # Process the text and video

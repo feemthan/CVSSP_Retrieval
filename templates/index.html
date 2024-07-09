@@ -214,44 +214,42 @@
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '';
 
+            function createResultItem(item) {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+
+                const imgElement = document.createElement('img');
+                imgElement.src = item['Image url'];
+                imgElement.alt = item.Caption;
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'info';
+
+                const title = document.createElement('h3');
+                title.textContent = `Image ${item.Index}`;
+
+                const caption = document.createElement('p');
+                caption.textContent = item.Caption;
+
+                const similarity = document.createElement('p');
+                similarity.textContent = `Similarity: ${item.Similarity.toFixed(4)}`;
+
+                infoDiv.appendChild(title);
+                infoDiv.appendChild(caption);
+                infoDiv.appendChild(similarity);
+
+                resultItem.appendChild(imgElement);
+                resultItem.appendChild(infoDiv);
+
+                resultsContainer.appendChild(resultItem);
+            }
+
             if (data.images) {
-                data.images.forEach(image => {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'result-item';
-
-                    const imgElement = document.createElement('img');
-                    imgElement.src = image['Image url'];
-                    imgElement.alt = image.Caption;
-
-                    const infoDiv = document.createElement('div');
-                    infoDiv.className = 'info';
-
-                    const title = document.createElement('h3');
-                    title.textContent = `Image ${image.Index}`;
-
-                    const caption = document.createElement('p');
-                    caption.textContent = image.Caption;
-
-                    const similarity = document.createElement('p');
-                    similarity.textContent = `Similarity: ${image.Similarity.toFixed(4)}`;
-
-                    infoDiv.appendChild(title);
-                    infoDiv.appendChild(caption);
-                    infoDiv.appendChild(similarity);
-
-                    resultItem.appendChild(imgElement);
-                    resultItem.appendChild(infoDiv);
-
-                    resultsContainer.appendChild(resultItem);
-                });
+                data.images.forEach(createResultItem);
             }
 
             if (data.texts) {
-                data.texts.forEach(text => {
-                    const textElement = document.createElement('p');
-                    textElement.textContent = text;
-                    resultsContainer.appendChild(textElement);
-                });
+                data.texts.forEach(createResultItem);
             }
 
             if (data.videos) {
