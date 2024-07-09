@@ -160,3 +160,30 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+notebook/image_folder/*
+notebook/cat/*
+notebook/knn.index
+notebook/cockatoo.jpg
+notebook/combined.index
+notebook/img.index
+notebook/index_infos.json
+notebook/indices_paths.json
+notebook/infos.json
+notebook/metadata_0.1.parquet
+notebook/text_infos.json
+notebook/text.index
+notebook/embedding_folder/combined_emb/combined.index
+notebook/embedding_folder/img_emb/img_emb_0.npy
+notebook/embedding_folder/metadata/metadata_0.parquet
+notebook/embedding_folder/stats/0.json
+notebook/embedding_folder/text_emb/text_emb_0.npy
+notebook/embeddings/img_emb_0.npy
+notebook/embeddings/metadata_0.parquet
+notebook/index_folder/image.index
+notebook/index_folder/image.json
+notebook/index_folder/metadata/metadata_0.parquet
+notebook/multimodal_embeddings/img.index
+notebook/multimodal_embeddings/combined_emb/combined_emb.npy
+notebook/multimodal_embeddings/img_emb/img_emb_0.npy
+notebook/multimodal_embeddings/text_emb/text_emb_0.npy
