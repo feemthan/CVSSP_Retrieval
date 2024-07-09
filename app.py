@@ -123,6 +123,7 @@ def handle_video():
 def handle_both():
     data = request.form
     text = data.get('text')
+    emphasis = float(data.get('emphasis', 0.5))
     if 'image' in request.files and 'video' in request.files:
         return jsonify({"error": "Cannot upload both image and video"}), 400
     if 'image' in request.files:
@@ -149,7 +150,7 @@ def handle_both():
         text_features /= text_features.norm(dim=-1, keepdim=True)
         text_embeddings = text_features.cpu().detach().numpy().astype('float32')
 
-        combined_embeddings = 0.5 * image_embeddings + 0.5 * text_embeddings
+        combined_embeddings = (1-emphasis) * image_embeddings + emphasis * text_embeddings
 
         D, I = combined_ind.search(combined_embeddings, 5)
         output = []

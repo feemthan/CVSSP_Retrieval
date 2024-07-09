@@ -29,6 +29,12 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .search-inputs {
+            flex: 1;
+            margin-right: 20px;
         }
         .form-row {
             margin-bottom: 15px;
@@ -105,6 +111,31 @@
         .clear-button:hover {
             background-color: #d32f2f;
         }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            width: 200px;
+        }
+        .slider-container input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .slider-label {
+            font-size: 14px;
+            color: #666;
+        }
+        #emphasis-value {
+            width: 50px;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -113,24 +144,34 @@
     </div>
     <div class="container">
         <div class="search-form">
-            <div class="form-row">
-                <label for="text">Text:</label>
-                <input type="text" id="text" name="text">
-                <button type="button" class="clear-button" onclick="clearInput('text')">Clear</button>
+            <div class="search-inputs">
+                <div class="form-row">
+                    <label for="text">Text:</label>
+                    <input type="text" id="text" name="text">
+                    <button type="button" class="clear-button" onclick="clearInput('text')">Clear</button>
+                </div>
+                <div class="form-row">
+                    <label for="image">Image:</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                    <button type="button" class="clear-button" onclick="clearInput('image')">Clear</button>
+                </div>
+                <div class="form-row">
+                    <label for="video">Video:</label>
+                    <input type="file" id="video" name="video" accept="video/*">
+                    <button type="button" class="clear-button" onclick="clearInput('video')">Clear</button>
+                </div>
+                <div class="form-row">
+                    <button type="button" id="goButton" onclick="submitForm()">Search</button>
+                    <button type="button" class="clear-button" onclick="clearAllInputsAndResults()">Clear All</button>
+                </div>
             </div>
-            <div class="form-row">
-                <label for="image">Image:</label>
-                <input type="file" id="image" name="image" accept="image/*">
-                <button type="button" class="clear-button" onclick="clearInput('image')">Clear</button>
-            </div>
-            <div class="form-row">
-                <label for="video">Video:</label>
-                <input type="file" id="video" name="video" accept="video/*">
-                <button type="button" class="clear-button" onclick="clearInput('video')">Clear</button>
-            </div>
-            <div class="form-row">
-                <button type="button" id="goButton" onclick="submitForm()">Search</button>
-                <button type="button" class="clear-button" onclick="clearAllInputsAndResults()">Clear All</button>
+            <div class="slider-container">
+                <div class="slider-labels">
+                    <span class="slider-label">Image</span>
+                    <span class="slider-label">Text</span>
+                </div>
+                <input type="range" id="emphasis-slider" min="0" max="1" step="0.01" value="0.5">
+                <input type="number" id="emphasis-value" min="0" max="1" step="0.01" value="0.5">
             </div>
         </div>
         <div class="results-container" id="resultsContainer"></div>
@@ -164,6 +205,8 @@
             document.getElementById('text').value = '';
             document.getElementById('image').value = '';
             document.getElementById('video').value = '';
+            document.getElementById('emphasis-slider').value = '0.5';
+            document.getElementById('emphasis-value').value = '0.5';
             clearAllResults();
         }
 
@@ -172,10 +215,12 @@
             const text = document.getElementById('text').value;
             const image = document.getElementById('image').files[0];
             const video = document.getElementById('video').files[0];
+            const emphasis = document.getElementById('emphasis-slider').value;
 
             if (text) formData.append('text', text);
             if (image) formData.append('image', image);
             if (video) formData.append('video', video);
+            formData.append('emphasis', emphasis);
 
             if (image && video) {
                 alert('You cannot upload both an image and a video.');
@@ -287,6 +332,18 @@
                 event.preventDefault();  // Prevent default form submission
                 submitForm();
             }
+        });
+
+        // Sync slider and input value
+        const slider = document.getElementById('emphasis-slider');
+        const value = document.getElementById('emphasis-value');
+
+        slider.addEventListener('input', function() {
+            value.value = this.value;
+        });
+
+        value.addEventListener('input', function() {
+            slider.value = this.value;
         });
     </script>
 </body>
