@@ -1,17 +1,48 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import os
+from io import BytesIO
+
+import clip
+import numpy as np
+import pandas as pd
+import requests
+import torch
+from PIL import Image
+from sklearn.metrics.pairwise import cosine_similarity
+
+import faiss
+from pathlib import Path
 
 app = Flask(__name__)
 app.static_folder = 'templates'
 
 # Replace this with the actual path to your images
-IMAGE_FOLDER = '/home/feem/Workspace/cats/00000'
-IMAGE_PATHS_FILE = '/home/feem/Workspace/image_paths.txt'
+IMAGE_FOLDER = '/home/faheem/Workspace/CVSSP_Retrieval/notebook/image_folder/00000'
+IMAGE_PATHS_FILE = '/home/faheem/Workspace/CVSSP_Retrieval/image_paths.txt'
 
-with open(IMAGE_PATHS_FILE, 'r') as file:
-    image_paths = file.read().splitlines()
-image_list = [{"url": "/images/"+path.split('/')[-1], "title": os.path.basename(path), "description": "CUTE CATS WHO DOESNT LIKE THEM"} for path in image_paths][:30]
-# print(image_list[0])
+# with open(IMAGE_PATHS_FILE, 'r') as file:
+#     image_paths = file.read().splitlines()
+# image_list = [{"url": "/images/"+path.split('/')[-1], "title": os.path.basename(path), "description": "CUTE CATS WHO DOESNT LIKE THEM"} for path in image_paths][:30]
+
+img_ind = faiss.read_index("/home/faheem/Workspace/CVSSP_Retrieval/notebook/img.index")
+text_ind = faiss.read_index("/home/faheem/Workspace/CVSSP_Retrieval/notebook/text.index")
+combined_ind = faiss.read_index("/home/faheem/Workspace/CVSSP_Retrieval/notebook/combined.index")
+data_dir = Path("/home/faheem/Workspace/CVSSP_Retrieval/notebook/embeddings")
+
+df = pd.concat(
+    pd.read_parquet(parquet_file)
+    for parquet_file in data_dir.glob('*.parquet')
+)
+
+image_list = df["image_path"].tolist()
+caption_list = df["caption"].tolist()
+url_list = df["url"].tolist()
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, preprocess = clip.load("ViT-B/32", device=device)
+
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -21,7 +52,24 @@ def handle_text():
     data = request.form
     text = data.get('text')
     # Process the text
-    return jsonify({"texts": [text]})
+    text_tokens = clip.tokenize([text], truncate=True)
+
+    text_features = model.encode_text(text_tokens.to(device))
+    text_features /= text_features.norm(dim=-1, keepdim=True)
+    text_embeddings = text_features.cpu().detach().numpy().astype('float32')
+
+    D, I = text_ind.search(text_embeddings, 1)
+
+    output = []
+    for d, i in zip(D[0], I[0]):
+        output.append({
+            "Similarity": float(d),
+            "Index": int(i),
+            "Caption": caption_list[i],
+            "Image url": url_list[i],
+        })
+    print(output)
+    return jsonify({"texts": output})
 
 @app.route('/image', methods=['POST'])
 def handle_image():
@@ -29,7 +77,35 @@ def handle_image():
         return jsonify({"error": "No image uploaded"}), 400
     image = request.files['image']
     # Process the image
-    return jsonify({"images":image_list})
+
+    upload_folder = 'uploads'
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+
+    image_path = os.path.join(upload_folder, image.filename)
+    image.save(image_path)
+    print(image_path)
+
+
+    image = Image.open(image_path)
+    image_tensor = preprocess(image)
+
+    image_features = model.encode_image(torch.unsqueeze(image_tensor.to(device), dim=0))
+    image_features /= image_features.norm(dim=-1, keepdim=True)
+
+    image_embeddings = image_features.cpu().detach().numpy().astype('float32')
+
+    D, I = img_ind.search(image_embeddings, 5)
+    output = []
+    for d, i in zip(D[0], I[0]):
+        output.append({
+            "Similarity": float(d),
+            "Index": int(i),
+            "Caption": caption_list[i],
+            "Image url": url_list[i],
+        })
+        
+    return jsonify({"images": output})
 
 @app.route('/video', methods=['POST'])
 def handle_video():

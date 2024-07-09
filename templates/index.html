@@ -128,12 +128,20 @@
                 <input type="file" id="video" name="video" accept="video/*">
                 <button type="button" class="clear-button" onclick="clearInput('video')">Clear</button>
             </div>
-            <button type="button" id="goButton" onclick="submitForm()">Search</button>
+            <div class="form-row">
+                <button type="button" id="goButton" onclick="submitForm()">Search</button>
+                <button type="button" class="clear-button" onclick="clearAllInputsAndResults()">Clear All</button>
+            </div>
         </div>
         <div class="results-container" id="resultsContainer"></div>
     </div>
 
     <script>
+        function clearAllResults() {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '';
+        }
+
         function clearInput(inputType) {
             const input = document.getElementById(inputType);
             if (inputType === 'text') {
@@ -149,6 +157,14 @@
                 // Replace the old input with the new one
                 input.parentNode.replaceChild(newInput, input);
             }
+            clearAllResults();
+        }
+
+        function clearAllInputsAndResults() {
+            document.getElementById('text').value = '';
+            document.getElementById('image').value = '';
+            document.getElementById('video').value = '';
+            clearAllResults();
         }
 
         function submitForm() {
@@ -198,39 +214,43 @@
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '';
 
-            if (data.texts) {
-                data.texts.forEach(text => {
-                    const textElement = document.createElement('p');
-                    textElement.textContent = text;
-                    resultsContainer.appendChild(textElement);
-                });
-            }
-
             if (data.images) {
                 data.images.forEach(image => {
                     const resultItem = document.createElement('div');
                     resultItem.className = 'result-item';
 
                     const imgElement = document.createElement('img');
-                    imgElement.src = image.url;
-                    imgElement.alt = image.title;
+                    imgElement.src = image['Image url'];
+                    imgElement.alt = image.Caption;
 
                     const infoDiv = document.createElement('div');
                     infoDiv.className = 'info';
 
                     const title = document.createElement('h3');
-                    title.textContent = image.title;
+                    title.textContent = `Image ${image.Index}`;
 
-                    const description = document.createElement('p');
-                    description.textContent = image.description;
+                    const caption = document.createElement('p');
+                    caption.textContent = image.Caption;
+
+                    const similarity = document.createElement('p');
+                    similarity.textContent = `Similarity: ${image.Similarity.toFixed(4)}`;
 
                     infoDiv.appendChild(title);
-                    infoDiv.appendChild(description);
+                    infoDiv.appendChild(caption);
+                    infoDiv.appendChild(similarity);
 
                     resultItem.appendChild(imgElement);
                     resultItem.appendChild(infoDiv);
 
                     resultsContainer.appendChild(resultItem);
+                });
+            }
+
+            if (data.texts) {
+                data.texts.forEach(text => {
+                    const textElement = document.createElement('p');
+                    textElement.textContent = text;
+                    resultsContainer.appendChild(textElement);
                 });
             }
 
