@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #4285f4;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-row {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .form-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            width: 60px;
+        }
+        .form-row input[type="text"],
+        .form-row input[type="file"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #goButton {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #goButton:hover {
+            background-color: #357ae8;
+        }
+        .results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .result-item {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .result-item:hover {
+            transform: translateY(-5px);
+        }
+        .result-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .result-item .info {
+            padding: 10px;
+        }
+        .result-item h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: #1a0dab;
+        }
+        .result-item p {
+            margin: 0;
+            font-size: 14px;
+            color: #006621;
+        }
+        .clear-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .clear-button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CVSSP Retrieval</h1>
+    </div>
+    <div class="container">
+        <div class="search-form">
+            <div class="form-row">
+                <label for="text">Text:</label>
+                <input type="text" id="text" name="text">
+                <button type="button" class="clear-button" onclick="clearInput('text')">Clear</button>
+            </div>
+            <div class="form-row">
+                <label for="image">Image:</label>
+                <input type="file" id="image" name="image" accept="image/*">
+                <button type="button" class="clear-button" onclick="clearInput('image')">Clear</button>
+            </div>
+            <div class="form-row">
+                <label for="video">Video:</label>
+                <input type="file" id="video" name="video" accept="video/*">
+                <button type="button" class="clear-button" onclick="clearInput('video')">Clear</button>
+            </div>
+            <button type="button" id="goButton" onclick="submitForm()">Search</button>
+        </div>
+        <div class="results-container" id="resultsContainer"></div>
+    </div>
+
+    <script>
+        function clearInput(inputType) {
+            const input = document.getElementById(inputType);
+            if (inputType === 'text') {
+                input.value = '';
+            } else {
+                input.value = '';
+                // Create a new file input element
+                const newInput = document.createElement('input');
+                newInput.type = 'file';
+                newInput.id = inputType;
+                newInput.name = inputType;
+                newInput.accept = input.accept;
+                // Replace the old input with the new one
+                input.parentNode.replaceChild(newInput, input);
+            }
+        }
+
+        function submitForm() {
+            const formData = new FormData();
+            const text = document.getElementById('text').value;
+            const image = document.getElementById('image').files[0];
+            const video = document.getElementById('video').files[0];
+
+            if (text) formData.append('text', text);
+            if (image) formData.append('image', image);
+            if (video) formData.append('video', video);
+
+            if (image && video) {
+                alert('You cannot upload both an image and a video.');
+                return;
+            }
+
+            let url;
+            if (text && (image || video)) {
+                url = '/both';
+            } else if (text) {
+                url = '/text';
+            } else if (image) {
+                url = '/image';
+            } else if (video) {
+                url = '/video';
+            } else {
+                alert('Please enter text or upload an image or video.');
+                return;
+            }
+
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                displayResults(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '';
+
+            if (data.texts) {
+                data.texts.forEach(text => {
+                    const textElement = document.createElement('p');
+                    textElement.textContent = text;
+                    resultsContainer.appendChild(textElement);
+                });
+            }
+
+            if (data.images) {
+                data.images.forEach(image => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+
+                    const imgElement = document.createElement('img');
+                    imgElement.src = image.url;
+                    imgElement.alt = image.title;
+
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'info';
+
+                    const title = document.createElement('h3');
+                    title.textContent = image.title;
+
+                    const description = document.createElement('p');
+                    description.textContent = image.description;
+
+                    infoDiv.appendChild(title);
+                    infoDiv.appendChild(description);
+
+                    resultItem.appendChild(imgElement);
+                    resultItem.appendChild(infoDiv);
+
+                    resultsContainer.appendChild(resultItem);
+                });
+            }
+
+            if (data.videos) {
+                data.videos.forEach(videoPath => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+
+                    const videoElement = document.createElement('video');
+                    videoElement.src = videoPath;
+                    videoElement.controls = true;
+
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'info';
+
+                    const title = document.createElement('h3');
+                    title.textContent = 'Video Result';
+
+                    const url = document.createElement('p');
+                    url.textContent = videoPath;
+
+                    infoDiv.appendChild(title);
+                    infoDiv.appendChild(url);
+
+                    resultItem.appendChild(videoElement);
+                    resultItem.appendChild(infoDiv);
+
+                    resultsContainer.appendChild(resultItem);
+                });
+            }
+        }
+
+        // Modified event listener to trigger submitForm on Enter key press
+        document.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();  // Prevent default form submission
+                submitForm();
+            }
+        });
+    </script>
+</body>
+</html>
