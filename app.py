@@ -152,10 +152,7 @@ def handle_image():
 
 @app.route('/video/<path:filename>')
 def serve_video(filename):
-    try:
-        test = send_from_directory('/home/faheem/Workspace/AdaCLIP/data/MSRVTT/videos/all/', filename)
-    except:
-        print('somethings wrong in serve_video')
+    test = send_from_directory('/home/faheem/Workspace/AdaCLIP/data/MSRVTT/videos/all/', filename)
     return test
 
 
