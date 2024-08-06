@@ -1,0 +1,12 @@
+{
+    "dataset": "msrvtt",
+    "train_annot": "/home/faheem/Workspace/AdaCLIP/annots/msrvtt-jsfusion/train.json",
+    "val_annot":   "/home/faheem/Workspace/AdaCLIP/annots/msrvtt-jsfusion/val.json",
+    "test_annot":  "/home/faheem/Workspace/AdaCLIP/annots/msrvtt-jsfusion/val.json",
+    "frames_dir":  "/home/faheem/Workspace/AdaCLIP/data/MSRVTT/images",
+    "concat_captions": "indep-one",
+    "max_txt_len": 32,
+    "num_frm": 16,
+    "batch_size": 48,
+    "num_workers": 12
+}

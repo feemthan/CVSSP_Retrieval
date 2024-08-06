@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, send_file
 import os
 from io import BytesIO
 
@@ -14,8 +14,10 @@ import faiss
 from pathlib import Path
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 
 app.static_folder = 'templates'
 
+################################ clip_retrieval ##########################
 # Replace this with the actual path to your images
 IMAGE_FOLDER = '/home/faheem/Workspace/CVSSP_Retrieval/notebook/image_folder/00000'
 
@@ -41,6 +43,49 @@ url_list = df["url"].tolist()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
 
+########################### AdaCLIP retrieval #######################
+from modeling.loss import CrossEn
+from modeling.model import AdaCLIP
+from modeling.clip_model import CLIP
+from modeling.metrics import t2v_metrics, v2t_metrics
+from datasets.dataset import BaseDataset
+from datasets.prefetch import PrefetchLoader
+from configs.config import parser, parse_with_config
+from argparse import Namespace
+
+from transformers import CLIPTokenizer
+import json
+
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from ada_retrieval import setup_model, setup_dataloaders, query_retrievalv2
+
+cfg = json.load(open('/home/faheem/Workspace/CVSSP_Retrieval/configs/custom_msrvtt_cfg.json'))
+cfg = Namespace(**cfg)
+
+tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+
+ada_model, epoch = setup_model(cfg, device=device)
+
+_, eval_loader = setup_dataloaders(cfg, device, cfg.train_annot, cfg.test_annot) 
+
+file_path = "frame_embd.pt"
+
+if os.path.exists(file_path):
+    frame_embd = torch.load(file_path, weights_only=True)
+    lenghts = torch.load('lenghts.pt', weights_only=True)
+    with open('ret_metrics.json', 'r') as f:
+        ret_metrics = json.load(f)
+    print(f"Loaded tensor from {file_path}")
+else:
+    ret_metrics, _, frame_embd, lengths = validate(ada_model, eval_loader, device, cfg, gflops_table=gflops_table)
+    with open('ret_metrics.json', 'w') as f:
+        json.dump(ret_metrics, f, indent=4)
+    torch.save(frame_embd, file_path)
+    torch.save(lengths, 'lenghts.pt')
+    print(f"Saved tensor to {file_path}")
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -58,17 +103,11 @@ def handle_text():
     text_embeddings = text_features.cpu().detach().numpy().astype('float32')
 
     D, I = text_ind.search(text_embeddings, 5)
-    # if (data.texts) {
-    #     data.texts.forEach(text => {
-    #         const textElement = document.createElement('p');
-    #         textElement.textContent = text.Caption;
-    #         resultsContainer.appendChild(textElement);
-    #     });
-    # }
+    
     output = []
     for d, i in zip(D[0], I[0]):
         output.append({
-            "Similarity": float(d),
+            "Similarity": round(float(d), 5),
             "Index": int(i),
             "Caption": caption_list[i],
             "Image url": url_list[i],
@@ -103,7 +142,7 @@ def handle_image():
     output = []
     for d, i in zip(D[0], I[0]):
         output.append({
-            "Similarity": float(d),
+            "Similarity": round(float(d), 5),
             "Index": int(i),
             "Caption": caption_list[i],
             "Image url": url_list[i],
@@ -111,20 +150,22 @@ def handle_image():
         
     return jsonify({"images": output})
 
-@app.route('/video', methods=['POST'])
-def handle_video():
-    if 'video' not in request.files:
-        return jsonify({"error": "No video uploaded"}), 400
-    video = request.files['video']
-    # Process the video
-    return jsonify({"videos": [video.filename]})
+@app.route('/video/<path:filename>')
+def serve_video(filename):
+    try:
+        test = send_from_directory('/home/faheem/Workspace/AdaCLIP/data/MSRVTT/videos/all/', filename)
+    except:
+        print('somethings wrong in serve_video')
+    return test
+
 
 @app.route('/both', methods=['POST'])
 def handle_both():
     data = request.form
     text = data.get('text')
     emphasis = float(data.get('emphasis', 0.5))
-    if 'image' in request.files and 'video' in request.files:
+    video_checked = data.get('video') == 'true'
+    if 'image' in request.files and video_checked:
         return jsonify({"error": "Cannot upload both image and video"}), 400
     if 'image' in request.files:
         image = request.files['image']
@@ -156,21 +197,31 @@ def handle_both():
         output = []
         for d, i in zip(D[0], I[0]):
             output.append({
-                "Similarity": float(d),
+                "Similarity": round(float(d), 5),
                 "Index": int(i),
                 "Caption": caption_list[i],
                 "Image url": url_list[i],
             })
         return jsonify({"images": output})
-    if 'video' in request.files:
-        video = request.files['video']
-        # Process the text and video
-        return jsonify({"texts": [text], "videos": [video.filename]})
-    return jsonify({"error": "No image or video uploaded"}), 400
 
-@app.route('/images/<path:filename>')
-def serve_image(filename):
-    return send_from_directory(IMAGE_FOLDER, filename)
+    if video_checked:
+        print("Video option is checked")  # Dummy print command
+        # Process the video
+        results = query_retrievalv2(cfg, text, device, ada_model, frame_embd, lenghts, top_k=5)
+        # Process the text and video
+        output = []
+        print(f"query is: {text}")
+        for i, (sim, caption, video_path) in enumerate(results):
+            print(video_path)
+            output.append({
+                "Similarity": round(float(sim), 5),
+                "Index": int(i),
+                "Caption": caption,
+                "Video_url": f"/video/{video_path.split('/')[-1]}",
+            })
+        return jsonify({"videos": [output]})
+    
+    return jsonify({"error": "No image uploaded or video selected"}), 400
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)

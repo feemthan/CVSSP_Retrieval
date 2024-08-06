@@ -1,0 +1,132 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f2f2f2;
+}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.header {
+    text-align: center;
+    padding: 20px;
+    background-color: #4285f4;
+    color: white;
+    margin-bottom: 20px;
+}
+.search-form {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+.search-inputs {
+    flex: 1;
+    margin-right: 20px;
+}
+.form-row {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+.form-row label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    width: 60px;
+}
+.form-row input[type="text"],
+.form-row input[type="file"] {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+#goButton {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+#goButton:hover {
+    background-color: #357ae8;
+}
+.results-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+.result-item {
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+.result-item:hover {
+    transform: translateY(-5px);
+}
+.result-item img,
+.result-item video {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+.result-item .info {
+    padding: 10px;
+}
+.result-item h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    color: #1a0dab;
+}
+.result-item p {
+    margin: 0;
+    font-size: 14px;
+    color: #006621;
+}
+.clear-button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+.clear-button:hover {
+    background-color: #d32f2f;
+}
+.slider-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    width: 200px;
+}
+.slider-container input[type="range"] {
+    width: 100%;
+    margin: 10px 0;
+}
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+.slider-label {
+    font-size: 14px;
+    color: #666;
+}
+#emphasis-value {
+    width: 50px;
+    text-align: center;
+    margin-top: 10px;
+}

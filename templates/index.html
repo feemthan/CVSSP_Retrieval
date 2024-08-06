@@ -81,7 +81,8 @@
         .result-item:hover {
             transform: translateY(-5px);
         }
-        .result-item img {
+        .result-item img,
+        .result-item video {
             width: 100%;
             height: 200px;
             object-fit: cover;
@@ -137,6 +138,7 @@
             margin-top: 10px;
         }
     </style>
+    <!-- <link rel="stylesheet" href="styles.css"> -->
 </head>
 <body>
     <div class="header">
@@ -157,8 +159,7 @@
                 </div>
                 <div class="form-row">
                     <label for="video">Video:</label>
-                    <input type="file" id="video" name="video" accept="video/*">
-                    <button type="button" class="clear-button" onclick="clearInput('video')">Clear</button>
+                    <input type="checkbox" id="video" name="video">
                 </div>
                 <div class="form-row">
                     <button type="button" id="goButton" onclick="submitForm()">Search</button>
@@ -187,7 +188,7 @@
             const input = document.getElementById(inputType);
             if (inputType === 'text') {
                 input.value = '';
-            } else {
+            } else if (inputType === 'image') {
                 input.value = '';
                 // Create a new file input element
                 const newInput = document.createElement('input');
@@ -197,6 +198,8 @@
                 newInput.accept = input.accept;
                 // Replace the old input with the new one
                 input.parentNode.replaceChild(newInput, input);
+            } else if (inputType === 'video') {
+                input.checked = false;
             }
             clearAllResults();
         }
@@ -204,7 +207,7 @@
         function clearAllInputsAndResults() {
             document.getElementById('text').value = '';
             document.getElementById('image').value = '';
-            document.getElementById('video').value = '';
+            document.getElementById('video').checked = false;
             document.getElementById('emphasis-slider').value = '0.5';
             document.getElementById('emphasis-value').value = '0.5';
             clearAllResults();
@@ -214,30 +217,33 @@
             const formData = new FormData();
             const text = document.getElementById('text').value;
             const image = document.getElementById('image').files[0];
-            const video = document.getElementById('video').files[0];
+            const videoChecked = document.getElementById('video').checked;
             const emphasis = document.getElementById('emphasis-slider').value;
 
             if (text) formData.append('text', text);
             if (image) formData.append('image', image);
-            if (video) formData.append('video', video);
+            if (videoChecked){
+                formData.append('video', 'true');
+            } else {
+                formData.append('video', 'false')
+            }
+            formData.append('video', videoChecked);
             formData.append('emphasis', emphasis);
 
-            if (image && video) {
-                alert('You cannot upload both an image and a video.');
+            if (image && videoChecked) {
+                alert('You cannot select both an image and video.');
                 return;
             }
 
             let url;
-            if (text && (image || video)) {
+            if (text && (image || videoChecked)) {
                 url = '/both';
             } else if (text) {
                 url = '/text';
             } else if (image) {
                 url = '/image';
-            } else if (video) {
-                url = '/video';
             } else {
-                alert('Please enter text or upload an image or video.');
+                alert('Please enter text or upload an image or select video.');
                 return;
             }
 
@@ -263,29 +269,44 @@
                 const resultItem = document.createElement('div');
                 resultItem.className = 'result-item';
 
-                const imgElement = document.createElement('img');
-                imgElement.src = item['Image url'];
-                imgElement.alt = item.Caption;
-
                 const infoDiv = document.createElement('div');
                 infoDiv.className = 'info';
 
                 const title = document.createElement('h3');
-                title.textContent = `Image ${item.Index}`;
-
-                const caption = document.createElement('p');
-                caption.textContent = item.Caption;
+                title.textContent = item.Caption;
 
                 const similarity = document.createElement('p');
-                similarity.textContent = `Similarity: ${item.Similarity.toFixed(4)}`;
+                similarity.textContent = `Similarity: ${item.Similarity}`;
 
                 infoDiv.appendChild(title);
-                infoDiv.appendChild(caption);
                 infoDiv.appendChild(similarity);
 
-                resultItem.appendChild(imgElement);
-                resultItem.appendChild(infoDiv);
+                if (item.Video_url) {
+                    const videoElement = document.createElement('video');
+                    videoElement.controls = true;
+                    videoElement.width = '100%';
+                    const sourceElement = document.createElement('source');
+                    sourceElement.src = item.Video_url;
+                    sourceElement.type = 'video/mp4';
+                    videoElement.appendChild(sourceElement);
 
+                    videoElement.addEventListener('error', function(e) {
+                        console.error('Error loading video:', e);
+                        const errorMsg = document.createElement('p');
+                        errorMsg.style.color = 'red';
+                        errorMsg.textContent = 'Error loading video. Please check the console for details.';
+                        infoDiv.appendChild(errorMsg);
+                    });
+
+                    resultItem.appendChild(videoElement);
+                } else if (item['Image url']) {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = item['Image url'];
+                    imgElement.alt = item.Caption;
+                    resultItem.appendChild(imgElement);
+                }
+
+                resultItem.appendChild(infoDiv);
                 resultsContainer.appendChild(resultItem);
             }
 
@@ -297,35 +318,10 @@
                 data.texts.forEach(createResultItem);
             }
 
-            if (data.videos) {
-                data.videos.forEach(videoPath => {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'result-item';
-
-                    const videoElement = document.createElement('video');
-                    videoElement.src = videoPath;
-                    videoElement.controls = true;
-
-                    const infoDiv = document.createElement('div');
-                    infoDiv.className = 'info';
-
-                    const title = document.createElement('h3');
-                    title.textContent = 'Video Result';
-
-                    const url = document.createElement('p');
-                    url.textContent = videoPath;
-
-                    infoDiv.appendChild(title);
-                    infoDiv.appendChild(url);
-
-                    resultItem.appendChild(videoElement);
-                    resultItem.appendChild(infoDiv);
-
-                    resultsContainer.appendChild(resultItem);
-                });
+            if (data.videos && Array.isArray(data.videos[0])) {
+                data.videos[0].forEach(createResultItem);
             }
         }
-
         // Modified event listener to trigger submitForm on Enter key press
         document.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
