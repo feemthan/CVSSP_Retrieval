@@ -59,7 +59,7 @@ import json
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ada_retrieval import setup_model, setup_dataloaders, query_retrievalv2
+from ada_retrieval import setup_model, setup_dataloaders, validate, query_retrievalv2
 
 cfg = json.load(open('/home/faheem/Workspace/CVSSP_Retrieval/configs/custom_msrvtt_cfg.json'))
 cfg = Namespace(**cfg)
@@ -70,20 +70,22 @@ ada_model, epoch = setup_model(cfg, device=device)
 
 _, eval_loader = setup_dataloaders(cfg, device, cfg.train_annot, cfg.test_annot) 
 
-file_path = "frame_embd.pt"
+file_path = 'embeddings/'
 
-if os.path.exists(file_path):
-    frame_embd = torch.load(file_path, weights_only=True)
-    lenghts = torch.load('lenghts.pt', weights_only=True)
-    with open('ret_metrics.json', 'r') as f:
+if os.path.exists(file_path+"frame_embd.pt") and os.path.exists(file_path+"text_embd.pt") and os.path.exists(file_path+"lengths.pt") and os.path.exists(file_path+"ret_metrics.json"):
+    frame_embd = torch.load(file_path+"frame_embd.pt", weights_only=True)
+    text_embd = torch.load(file_path+'text_embd.pt', weights_only=True)
+    lengths = torch.load(file_path+'lengths.pt', weights_only=True)
+    with open(file_path+'ret_metrics.json', 'r') as f:
         ret_metrics = json.load(f)
     print(f"Loaded tensor from {file_path}")
 else:
-    ret_metrics, _, frame_embd, lengths = validate(ada_model, eval_loader, device, cfg, gflops_table=gflops_table)
-    with open('ret_metrics.json', 'w') as f:
+    ret_metrics, _, frame_embd, text_embd, lengths = validate(ada_model, eval_loader, device, cfg, gflops_table=gflops_table)
+    torch.save(frame_embd, file_path+'frame_embd.pt')
+    torch.save(text_embd, file_path+'text_embd.pt')
+    torch.save(lengths, file_path+'lengths.pt')
+    with open(file_path+'ret_metrics.json', 'w') as f:
         json.dump(ret_metrics, f, indent=4)
-    torch.save(frame_embd, file_path)
-    torch.save(lengths, 'lenghts.pt')
     print(f"Saved tensor to {file_path}")
 
 @app.route('/')
@@ -131,6 +133,7 @@ def handle_image():
 
     image = Image.open(image_path)
     image_tensor = preprocess(image)
+    os.remove(image_path)
 
     image_features = model.encode_image(torch.unsqueeze(image_tensor.to(device), dim=0))
     image_features /= image_features.norm(dim=-1, keepdim=True)
@@ -150,7 +153,7 @@ def handle_image():
         
     return jsonify({"images": output})
 
-@app.route('/video/<path:filename>')
+@app.route('/videotext/<path:filename>')
 def serve_video(filename):
     test = send_from_directory('/home/faheem/Workspace/AdaCLIP/data/MSRVTT/videos/all/', filename)
     return test
@@ -204,7 +207,7 @@ def handle_both():
     if video_checked:
         print("Video option is checked")  # Dummy print command
         # Process the video
-        results = query_retrievalv2(cfg, text, device, ada_model, frame_embd, lenghts, top_k=5)
+        results = query_retrievalv2(cfg, text, device, ada_model, frame_embd, lengths, top_k=5)
         # Process the text and video
         output = []
         print(f"query is: {text}")
@@ -214,7 +217,7 @@ def handle_both():
                 "Similarity": round(float(sim), 5),
                 "Index": int(i),
                 "Caption": caption,
-                "Video_url": f"/video/{video_path.split('/')[-1]}",
+                "Video_url": f"/videotext/{video_path.split('/')[-1]}",
             })
         return jsonify({"videos": [output]})
     

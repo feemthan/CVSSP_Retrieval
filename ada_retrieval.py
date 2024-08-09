@@ -229,7 +229,7 @@ def compute_faiss_retrieval(batch_size, text_embd, frame_embd, top_k=5):
     return all_distances, all_indices
 
 @torch.no_grad()
-def validate(model, val_loader, device, cfg, criterion=None, writer=None, epoch=None, gflops_table=None):
+def validate(model, val_loader, device, cfg, criterion=None, writer=None, epoch=None):
 
     if hasattr(model, 'module'):
         model = model.module.to(device)
@@ -266,63 +266,7 @@ def validate(model, val_loader, device, cfg, criterion=None, writer=None, epoch=
     actions = actions.cpu().detach().numpy()
     # log_policy_usage(actions, gflops_table, cfg, True)
 
-    return all_metrics, actions, frame_embd, lengths
-
-# def decoupled_retrieval(cfg):
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     model, epoch = setup_model(cfg, device=device)
-#     if cfg.do_inference:
-#         _, eval_loader = setup_dataloaders(cfg, device, cfg.train_annot, cfg.test_annot) 
-#         LOGGER.info(f"***** Test information *****")
-#         LOGGER.info("  Num examples = %d", len(eval_loader.dataset))
-#         LOGGER.info("  Batch size = %d", cfg.batch_size)
-#         LOGGER.info("  Num steps = %d", len(eval_loader))
-#         file_path = "frame_embd.pt"
-
-#         if os.path.exists(file_path):
-#             # Load the tensor if the file exists
-#             frame_embd = torch.load(file_path)
-#             lenghts = torch.load('lenghts.pt')
-#             with open('ret_metrics.json', 'r') as f:
-#                 ret_metrics = json.load(f)
-#             print(f"Loaded tensor from {file_path}")
-#         else:
-#             ret_metrics, _, frame_embd, lengths = validate(model, eval_loader, device, cfg, gflops_table=gflops_table)
-#             # Save the tensor if the file doesn't exist
-#             with open('ret_metrics.json', 'w') as f:
-#                 json.dump(ret_metrics, f, indent=4)
-#             torch.save(frame_embd, file_path)
-#             torch.save(lengths, 'lenghts.pt')
-#             print(f"Saved tensor to {file_path}")
-
-#         if cfg.do_retrieval:
-#             LOGGER.info('Working on retrieval!')
-
-#             video_data_path = '/home/faheem/Workspace/AdaCLIP/data/MSRVTT/videos/all/'
-#             # Assuming you have your text_embd and frame_embd tensors ready
-#             top_k = 5  # Number of top video matches to retrieve for each text
-#             query = 'a man driving a car'
-
-#             tokens = tokenizer(query, padding="max_length", max_length=77, truncation=True, return_tensors="pt")
-#             tokens = tokens.to(device)
-#             query_input_ids = tokens.input_ids.unsqueeze(0)  # Add batch and caption dimensions
-
-#             with torch.no_grad():
-#                 query_embd, word_embd = model.get_text_output(query_input_ids, return_hidden=True)
-
-#             sims = compute_batched_query_sim_matrix(cfg.val_batch_size, model, query_embd, frame_embd, word_embd, lenghts)
-#             json_data = json.load(open(cfg.val_annot))
-
-#             distances, indices = compute_faiss_retrieval(cfg.val_batch_size, query_embd, frame_embd, top_k)
-#             video_data = [(video_info['sentences'][0], video_num) for video_num, video_info in json_data.items()]
-
-#             # Process the results
-#             results = []
-#             LOGGER.info(f"Top {top_k} video matches for the text query '{query}':")
-#             for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
-#                 LOGGER.info(f"  Rank {i+1}: Video frame {idx}, similarity score: {dist:.2f} Caption: {video_data[idx][0]} Path: {video_data_path}{video_data[idx][1]}.mp4")
-#                 results.append([video_data[idx][0], video_data_path+video_data[idx][1]+".mp4"])
-#             LOGGER.info(results)
+    return all_metrics, actions, frame_embd, text_embd, lengths
 
 def query_retrieval(cfg, query, top_k=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -330,20 +274,22 @@ def query_retrieval(cfg, query, top_k=5):
 
     _, eval_loader = setup_dataloaders(cfg, device, cfg.train_annot, cfg.test_annot) 
 
-    file_path = "frame_embd.pt"
+    file_path = 'embeddings/'
 
-    if os.path.exists(file_path):
-        frame_embd = torch.load(file_path, weights_only=True)
-        lenghts = torch.load('lenghts.pt', weights_only=True)
-        with open('ret_metrics.json', 'r') as f:
+    if os.path.exists(file_path+"frame_embd.pt") and os.path.exists(file_path+"text_embd.pt") and os.path.exists(file_path+"lengths.pt") and os.path.exists(file_path+"ret_metrics.json"):
+        frame_embd = torch.load(file_path+"frame_embd.pt", weights_only=True)
+        text_embd = torch.load(file_path+'text_embd.pt', weights_only=True)
+        lengths = torch.load(file_path+'lengths.pt', weights_only=True)
+        with open(file_path+'ret_metrics.json', 'r') as f:
             ret_metrics = json.load(f)
         print(f"Loaded tensor from {file_path}")
     else:
-        ret_metrics, _, frame_embd, lengths = validate(ada_model, eval_loader, device, cfg, gflops_table=gflops_table)
-        with open('ret_metrics.json', 'w') as f:
+        ret_metrics, _, frame_embd, text_embd, lengths = validate(ada_model, eval_loader, device, cfg)
+        torch.save(frame_embd, file_path+'frame_embd.pt')
+        torch.save(text_embd, file_path+'text_embd.pt')
+        torch.save(lengths, file_path+'lengths.pt')
+        with open(file_path+'ret_metrics.json', 'w') as f:
             json.dump(ret_metrics, f, indent=4)
-        torch.save(frame_embd, file_path)
-        torch.save(lengths, 'lenghts.pt')
         print(f"Saved tensor to {file_path}")
 
     LOGGER.info('Working on retrieval!')
@@ -359,7 +305,7 @@ def query_retrieval(cfg, query, top_k=5):
     with torch.no_grad():
         query_embd, word_embd = ada_model.get_text_output(query_input_ids, return_hidden=True)
 
-    sims = compute_batched_query_sim_matrix(cfg.val_batch_size, ada_model, query_embd, frame_embd, word_embd, lenghts)
+    sims = compute_batched_query_sim_matrix(cfg.val_batch_size, ada_model, query_embd, frame_embd, word_embd, lengths)
     json_data = json.load(open(cfg.val_annot))
 
     distances, indices = compute_faiss_retrieval(cfg.val_batch_size, query_embd, frame_embd, top_k)
@@ -373,7 +319,7 @@ def query_retrieval(cfg, query, top_k=5):
     LOGGER.info(results)
     return results
 
-def query_retrievalv2(cfg, query, device, ada_model, frame_embd, lenghts, top_k=5):
+def query_retrievalv2(cfg, query, device, ada_model, frame_embd, lengths, top_k=5):
 
     top_k = top_k
     query = query
@@ -386,7 +332,7 @@ def query_retrievalv2(cfg, query, device, ada_model, frame_embd, lenghts, top_k=
     with torch.no_grad():
         query_embd, word_embd = ada_model.get_text_output(query_input_ids, return_hidden=True)
 
-    sims = compute_batched_query_sim_matrix(cfg.val_batch_size, ada_model, query_embd, frame_embd, word_embd, lenghts)
+    sims = compute_batched_query_sim_matrix(cfg.val_batch_size, ada_model, query_embd, frame_embd, word_embd, lengths)
     json_data = json.load(open(cfg.val_annot))
 
     distances, indices = compute_faiss_retrieval(cfg.val_batch_size, query_embd, frame_embd, top_k)
@@ -400,10 +346,30 @@ def query_retrievalv2(cfg, query, device, ada_model, frame_embd, lenghts, top_k=
     LOGGER.info(results)
     return results
 
-
-
 if __name__ == '__main__':
     cfg = json.load(open('/home/faheem/Workspace/CVSSP_Retrieval/configs/custom_msrvtt_cfg.json'))
     cfg = Namespace(**cfg)
+
+    file_path = 'embeddings/'
+
+    if os.path.exists(file_path+"frame_embd.pt") and os.path.exists(file_path+"text_embd.pt") and os.path.exists(file_path+"lengths.pt") and os.path.exists(file_path+"ret_metrics.json"):
+        frame_embd = torch.load(file_path+"frame_embd.pt", weights_only=True)
+        text_embd = torch.load(file_path+'text_embd.pt', weights_only=True)
+        lengths = torch.load(file_path+'lengths.pt', weights_only=True)
+        with open(file_path+'ret_metrics.json', 'r') as f:
+            ret_metrics = json.load(f)
+        print(f"Loaded tensor from {file_path}")
+    else:
+        ret_metrics, _, frame_embd, text_embd, lengths = validate(ada_model, eval_loader, device, cfg)
+        torch.save(frame_embd, file_path+'frame_embd.pt')
+        torch.save(text_embd, file_path+'text_embd.pt')
+        torch.save(lengths, file_path+'lengths.pt')
+        with open(file_path+'ret_metrics.json', 'w') as f:
+            json.dump(ret_metrics, f, indent=4)
+        print(f"Saved tensor to {file_path}")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    ada_model, epoch = setup_model(cfg, device=device)
     query_retrieval(cfg, query='cat drinking water', top_k=5)
+    query_retrievalv2(cfg, query='cat drinking water', device=device, ada_model=ada_model, frame_embd=frame_embd, lengths=lengths, top_k=5)
 
