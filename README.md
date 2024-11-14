@@ -15,9 +15,13 @@ This simple web application was built as a small part of the CVSSP dissertation 
 ![Features Image](frontend_image.png)
 
 Thank you AdaCLIP for your work!
+
+# Citation
+```
 @inproceedings{AdaCLIP,
     title={AdaCLIP: Towards Pragmatic Multimodal Video Retrieval},
     author={Hu, Zhiming and Ye, Angela N and Khorasgani, Salar H and Mohomed, Iqbal},
     booktitle={Proc. of the 31st ACM International Conference on Multimedia},
     year={2023}
 }
+```
