@@ -1,6 +1,6 @@
 # CVSSP_Retrieval with AdaCLIP support
 
-This is a retrieval method used for MSRVTT dataset and laion embeddings. The video retrieval is invoked using the button triggers the AdaCLIP model.
+This is a retrieval method used for MSRVTT dataset and laion embeddings and the strategy suggested by clip retrieval. The video retrieval is invoked using the button triggers the AdaCLIP model.
 
 AdaCLIP was built for the purpose of text to video retrieval. Although it can perform video to text as well, we primarily use it for text to video.
 
@@ -23,5 +23,15 @@ Thank you AdaCLIP for your work!
     author={Hu, Zhiming and Ye, Angela N and Khorasgani, Salar H and Mohomed, Iqbal},
     booktitle={Proc. of the 31st ACM International Conference on Multimedia},
     year={2023}
+}
+```
+```
+@misc{beaumont-2022-clip-retrieval,
+  author = {Romain Beaumont},
+  title = {Clip Retrieval: Easily compute clip embeddings and build a clip retrieval system with them},
+  year = {2022},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/rom1504/clip-retrieval}}
 }
 ```
