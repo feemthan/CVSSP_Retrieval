@@ -11,7 +11,8 @@ This simple web application was built as a small part of the CVSSP dissertation 
 ![Features Image](frontend.png)
 
 **CLIP retrieval**
-![Features Image](frontend_image.jpg)
+
+![Features Image](frontend_image.png)
 
 Thank you AdaCLIP for your work!
 @inproceedings{AdaCLIP,
